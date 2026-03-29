@@ -1,0 +1,101 @@
+.hero-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 85vh;
+  text-align: center;
+  padding: 4rem 2rem;
+  position: relative;
+}
+
+.hero-section::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(94, 157, 217, 0.3), transparent);
+}
+
+.hero-title {
+  font-size: 6.5rem;
+  letter-spacing: 0.05em; 
+  margin-bottom: 0.5rem;
+  /* Premium Solid Finish */
+  color: #fcfcfc;
+  filter: drop-shadow(0 4px 15px rgba(255, 255, 255, 0.05));
+}
+
+.hero-subtitle {
+  font-size: 1.4rem;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 3rem; 
+  font-weight: 300;
+  text-shadow: 0 0 20px var(--accent-glow);
+}
+
+.hero-socials {
+  display: flex;
+  flex-wrap: wrap; 
+  justify-content: center;
+  align-items: center;
+  gap: 2.2rem;
+  padding-top: 1rem;
+}
+
+.hero-social-icon {
+  color: rgba(255, 255, 255, 0.65); /* Simple light themed */
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-social-icon:hover {
+  color: #ffffff;
+  transform: translateY(-3px) scale(1.1);
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+}
+
+@media (max-width: 900px) {
+  .hero-title { font-size: 4rem; }
+  .hero-subtitle { font-size: 1.1rem; letter-spacing: 0.4em; }
+}
+
+@media (max-width: 600px) {
+  .hero-title { font-size: 3rem; }
+  .hero-socials { gap: 1.8rem; }
+}
+
+.scroll-indicator {
+  position: absolute;
+  bottom: 3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.scroll-text {
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 300;
+}
+
+.scroll-icon {
+  margin-top: 0.2rem;
+  color: var(--accent);
+  opacity: 0.8;
+}

@@ -1,0 +1,58 @@
+.scores-section {
+  padding: 3rem;
+  width: 90vw;
+  max-width: 600px;
+  margin: 0 auto;
+  
+  /* Glassmorphic Panel Design */
+  background: rgba(20, 24, 30, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6);
+}
+
+.section-header {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.section-title {
+  font-size: 2.8rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+  color: var(--text-main);
+  text-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+.title-underline {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 0 auto;
+}
+
+.tracks-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+@media (max-width: 1024px) {
+  .scores-section {
+    max-width: 500px;
+    padding: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .scores-section {
+    padding: 2rem;
+    width: 85vw;
+  }
+  .section-title {
+    font-size: 2rem;
+  }
+}
