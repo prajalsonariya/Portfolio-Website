@@ -42,8 +42,8 @@ function App() {
   
   const scoreContainerOpacity = useTransform(
     scrollYProgress, 
-    isMobile ? [0.1, 0.3, 0.5, 0.65] : [0.1, 0.3], 
-    isMobile ? [0, 1, 1, 0] : [0, 1]
+    isMobile ? [0.1, 0.3, 0.5, 0.65] : [0.1, 0.3, 0.65, 0.78], 
+    isMobile ? [0, 1, 1, 0] : [0, 1, 1, 0]
   );
   
   const scoreContainerX = useTransform(
@@ -63,10 +63,16 @@ function App() {
     return p > 0.7 ? "none" : "flex";
   });
 
-  // Phase 3: CTA component "birth" effect
+  // Phase 3: CTA component "birth" effect — fades out before tagline starts
   const ctaScale = useTransform(scrollYProgress, [0.60, 0.75], [0, 1]);
-  const ctaOpacity = useTransform(scrollYProgress, [0.60, 0.75], [0, 1]);
+  const ctaOpacity = useTransform(scrollYProgress, [0.60, 0.72, 0.78, 0.84], [0, 1, 1, 0]);
   const ctaX = useTransform(scrollYProgress, [0.60, 0.75], isMobile ? ["0vw", "0vw"] : ["-25vw", "-25vw"]);
+
+  // Phase 4: Closing tagline — starts at footer, rises to center and grows. Never fades out.
+  // Explicit 1.0 keyframes guarantee the values hold at the absolute scroll bottom.
+  const taglineOpacity = useTransform(scrollYProgress, [0.82, 0.86, 1.0], [0, 1, 1]);
+  const taglineY = useTransform(scrollYProgress, [0.82, 0.92, 1.0], ["35vh", "0vh", "0vh"]);
+  const taglineScale = useTransform(scrollYProgress, [0.82, 0.92, 1.0], [0.7, 1, 1]);
 
   return (
     <>
@@ -114,6 +120,14 @@ function App() {
           
         </div>
       </div>
+
+      {/* Tagline lives OUTSIDE the sticky wrapper as a fixed overlay so it never scrolls away */}
+      <motion.div 
+        className="tagline-fixed"
+        style={{ opacity: taglineOpacity, y: taglineY, scale: taglineScale }}
+      >
+        <p className="closing-tagline">Where noise ends, Art begins.</p>
+      </motion.div>
     </>
   );
 }

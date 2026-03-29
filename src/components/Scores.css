@@ -49,10 +49,15 @@
 
 @media (max-width: 768px) {
   .scores-section {
-    padding: 2rem;
-    width: 85vw;
+    padding: 1.5rem;
+    width: 95vw;
   }
   .section-title {
     font-size: 2rem;
+  }
+  .tracks-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
   }
 }
