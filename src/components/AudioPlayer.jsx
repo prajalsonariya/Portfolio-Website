@@ -1,181 +1,413 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Play, Pause, Volume2, FastForward, Rewind } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './AudioPlayer.css';
 
-const AudioPlayer = ({ title, src, index, phrase }) => {
-  const audioRef = useRef(null);
-  const glowRef = useRef(null);
-  const animationRef = useRef(null);
-  const contextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const progressRef = useRef(0);
+const tracks = [
+  {
+    id: 1,
+    title: 'Die-Ra',
+    file: '/audio/Die-Ra.mp3',
+    genre: 'Passionate Aggression',
+    cover: '/image/Die-Ra.jpeg',
+  },
+  {
+    id: 2,
+    title: 'Love Anthem',
+    file: '/audio/Love Anthem.mp3',
+    genre: 'Finally Confessed',
+    cover: '/image/Love Anthem.jpeg',
+  },
+  {
+    id: 3,
+    title: 'The Headache',
+    file: '/audio/The Headache.mp3',
+    genre: 'A Quiet Garden',
+    cover: '/image/The Headache.jpeg',
+  },
+];
 
+const formatTime = (s) => {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+};
+
+const AudioPlayer = () => {
+  const [currentIdx, setCurrentIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(0.8);
+  const [waveData, setWaveData] = useState(new Array(40).fill(0.08));
+  const [miniVisible, setMiniVisible] = useState(false);
+  const [hasPlayed, setHasPlayed] = useState(false);
 
+  const audioRef       = useRef(null);
+  const animRef        = useRef(null);
+  const analyserRef    = useRef(null);
+  const audioCtxRef    = useRef(null);
+  const sourceRef      = useRef(null);
+  const progressRef    = useRef(null);
+  const sectionRef     = useRef(null);
+  const miniProgressRef = useRef(null);
+
+  const currentTrack = tracks[currentIdx];
+
+  // ─── IntersectionObserver: show mini-player when section leaves viewport ───
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const updateProgress = () => {
-      if (audio.duration) {
-        const val = (audio.currentTime / audio.duration) * 100;
-        setProgress(val);
-        progressRef.current = val;
-      }
-    };
-
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setProgress(0);
-      progressRef.current = 0;
-    };
-
-    audio.addEventListener('timeupdate', updateProgress);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateProgress);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('ended', handleEnded);
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
-    };
+    if (!sectionRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Show mini-player only when section is out of view AND music is playing
+        setMiniVisible(!entry.isIntersecting);
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(sectionRef.current);
+    return () => observer.disconnect();
   }, []);
 
-  const setupAudioContext = () => {
-    if (contextRef.current) return;
-    
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      const actx = new AudioContext();
-      const analyser = actx.createAnalyser();
-      
-      const source = actx.createMediaElementSource(audioRef.current);
-      source.connect(analyser);
-      analyser.connect(actx.destination);
-      
-      analyser.fftSize = 256; 
-      
-      contextRef.current = actx;
-      analyserRef.current = analyser;
-    } catch (e) {
-      console.warn("Could not setup audio context", e);
+  // ─── Web Audio API analyser ───
+  const setupAnalyser = useCallback(() => {
+    if (!audioRef.current) return;
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
-  };
+    if (!sourceRef.current) {
+      sourceRef.current = audioCtxRef.current.createMediaElementSource(audioRef.current);
+      analyserRef.current = audioCtxRef.current.createAnalyser();
+      analyserRef.current.fftSize = 2048;
+      analyserRef.current.smoothingTimeConstant = 0.75;
+      sourceRef.current.connect(analyserRef.current);
+      analyserRef.current.connect(audioCtxRef.current.destination);
+    }
+  }, []);
 
-  const drawReactivePulse = () => {
-    if (!analyserRef.current || !glowRef.current) return;
-    
-    const analyser = analyserRef.current;
-    const bufferLength = analyser.frequencyBinCount;
+  // ─── Waveform draw loop (logarithmic freq map) ───
+  const drawWave = useCallback(() => {
+    if (!analyserRef.current || !isPlaying) return;
+    const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    
-    let currentSmooth = 0;
-    
-    const draw = () => {
-      animationRef.current = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
-      
-      // Focus on lower frequencies (bass/mid) for a cinematic pulse
+    analyserRef.current.getByteFrequencyData(dataArray);
+    const bars = 40;
+    const newData = Array.from({ length: bars }, (_, i) => {
+      const t = i / (bars - 1);
+      const logMin = Math.log2(1);
+      const logMax = Math.log2(bufferLength);
+      const logIdx = Math.pow(2, logMin + (logMax - logMin) * t);
+      const centerIdx = Math.min(Math.floor(logIdx), bufferLength - 1);
+      const windowSize = Math.max(1, Math.floor(logIdx * 0.12));
       let sum = 0;
-      const binCount = 15;
-      for(let i = 0; i < binCount; i++) {
-        sum += dataArray[i];
+      for (let j = 0; j < windowSize; j++) {
+        sum += dataArray[Math.min(centerIdx + j, bufferLength - 1)];
       }
-      
-      const rawVolume = sum / binCount / 255;
-      
-      // Smooth interpolation
-      currentSmooth += (rawVolume - currentSmooth) * 0.15;
-      
-      // Map it to CSS scale and opacity
-      const scale = 1 + (currentSmooth * 0.8); // Breathes up to 1.8x size
-      const opacity = Math.max(0.1, currentSmooth * 0.7);
-      
-      if (glowRef.current) {
-        glowRef.current.style.transform = `scale(${scale})`;
-        glowRef.current.style.opacity = opacity;
-      }
-    };
-    
-    draw();
-  };
+      const val = sum / windowSize / 255;
+      return Math.max(0.06, val);
+    });
+    setWaveData(newData);
+    animRef.current = requestAnimationFrame(drawWave);
+  }, [isPlaying]);
 
-  const togglePlay = () => {
-    setupAudioContext();
-    
-    if (contextRef.current && contextRef.current.state === 'suspended') {
-        contextRef.current.resume();
-    }
-
-    if (audioRef.current.paused) {
-      document.querySelectorAll('audio').forEach(el => {
-        if (el !== audioRef.current && !el.paused) {
-          el.pause();
-        }
-      });
-      audioRef.current.play()
-        .then(() => {
-          if (!animationRef.current) drawReactivePulse();
-        })
-        .catch(e => console.error("Playback failed", e));
+  useEffect(() => {
+    if (isPlaying) {
+      animRef.current = requestAnimationFrame(drawWave);
     } else {
+      cancelAnimationFrame(animRef.current);
+      setWaveData(prev => prev.map(() => 0.08));
+    }
+    return () => cancelAnimationFrame(animRef.current);
+  }, [isPlaying, drawWave]);
+
+  // ─── Controls ───
+  const togglePlay = async () => {
+    if (!audioRef.current) return;
+    setupAnalyser();
+    if (audioCtxRef.current?.state === 'suspended') {
+      await audioCtxRef.current.resume();
+    }
+    if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      await audioRef.current.play();
+      setIsPlaying(true);
+      setHasPlayed(true);
     }
   };
 
-  const handleSeek = (e) => {
-    if (!audioRef.current.duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const width = rect.width;
-    const newTime = (clickX / width) * audioRef.current.duration;
-    audioRef.current.currentTime = newTime;
+  const selectTrack = (idx) => {
+    setCurrentIdx(idx);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.load();
+        audioRef.current.volume = volume;
+      }
+    }, 50);
   };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) setDuration(audioRef.current.duration);
+  };
+
+  const handleEnded = () => {
+    const next = (currentIdx + 1) % tracks.length;
+    selectTrack(next);
+    setTimeout(() => {
+      audioRef.current?.play();
+      setIsPlaying(true);
+      setHasPlayed(true);
+    }, 200);
+  };
+
+  const handleSeek = (e, ref) => {
+    const el = ref?.current || e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    if (audioRef.current) {
+      audioRef.current.currentTime = ratio * duration;
+      setCurrentTime(ratio * duration);
+    }
+  };
+
+  const handleVolume = (e) => {
+    const val = parseFloat(e.target.value);
+    setVolume(val);
+    if (audioRef.current) audioRef.current.volume = val;
+  };
+
+  // Scroll back to player section
+  const scrollToPlayer = () => {
+    sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const progress = duration ? currentTime / duration : 0;
 
   return (
-    <motion.div 
-      className="audio-player-card"
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: index * 0.15, type: "spring", bounce: 0.3 }}
-      viewport={{ once: true, margin: "-50px" }}
-    >
-      <div className="controls-container">
-        <div className="track-info">
-          <span className="track-title">{title}</span>
-          <span className="track-status">{isPlaying ? 'Now Playing' : (phrase || 'Ready')}</span>
+    <>
+      {/* ─── Main Audio Engine ─── */}
+      <section className="audio-engine" id="works" ref={sectionRef}>
+        <div className="audio-engine__header">
+          <p className="audio-engine__tag">
+            <span className="tag-diamond">◆</span> FEATURED WORKS
+          </p>
+          <p className="audio-engine__desc">
+          A collection of recent compositions, built to make the listener feel something real.
+        </p>
         </div>
-        
-        <div className="complex-controls">
-          <button className="icon-btn minor-btn" aria-label="Rewind"><Rewind size={22} /></button>
-          
-          <div className="play-btn-wrapper">
-            <div className="reactive-glow" ref={glowRef}></div>
-            <button className="play-btn" onClick={togglePlay} aria-label={isPlaying ? "Pause" : "Play"}>
-              {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="play-icon-offset" />}
-            </button>
+
+        <div className="audio-engine__body">
+          {/* Track list */}
+          <div className="track-list">
+            {tracks.map((t, i) => (
+              <button
+                key={t.id}
+                className={`track-item ${i === currentIdx ? 'track-item--active' : ''}`}
+                onClick={() => selectTrack(i)}
+                data-cursor-hover
+              >
+                {/* Cover art thumbnail in track list */}
+                <div className="track-item__cover">
+                  <img src={t.cover} alt={t.title} />
+                </div>
+                <div className="track-item__info">
+                  <span className="track-item__title">{t.title}</span>
+                  <span className="track-item__genre">{t.genre}</span>
+                </div>
+                <div className="track-item__bars" aria-hidden="true">
+                  {i === currentIdx && isPlaying ? (
+                    <><span /><span /><span /></>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M3 2l9 5-9 5V2z" fill="currentColor" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            ))}
           </div>
-          
-          <button className="icon-btn minor-btn" aria-label="Fast Forward"><FastForward size={22} /></button>
+
+          {/* Player panel with cover art */}
+          <div className="player-panel">
+            {/* Blurred cover art background */}
+            <div className="player-panel__art-bg">
+              <img
+                src={currentTrack.cover}
+                alt=""
+                aria-hidden="true"
+                className="player-panel__art-bg-img"
+              />
+            </div>
+
+            {/* Content layer on top of blurred bg */}
+            <div className="player-panel__content">
+              {/* Cover art + waveform row */}
+              <div className="player-panel__top-row">
+                <div className="player-panel__cover">
+                  <img src={currentTrack.cover} alt={currentTrack.title} />
+                </div>
+                {/* Live waveform visualiser */}
+                <div className="visualiser" aria-hidden="true">
+                  {waveData.map((h, i) => (
+                    <div
+                      key={i}
+                      className="visualiser__bar"
+                      style={{ transform: `scaleY(${h})`, opacity: 0.4 + h * 0.6 }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Track info */}
+              <div className="player-panel__track">
+                <p className="player-panel__genre">{currentTrack.genre}</p>
+                <h3 className="player-panel__title">{currentTrack.title}</h3>
+              </div>
+
+              {/* Progress bar */}
+              <div
+                className="player-progress"
+                ref={progressRef}
+                onClick={(e) => handleSeek(e, progressRef)}
+                data-cursor-hover
+              >
+                <div className="player-progress__fill" style={{ width: `${progress * 100}%` }} />
+              </div>
+              <div className="player-times">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+
+              {/* Controls */}
+              <div className="player-controls">
+                <button
+                  className="ctrl-btn ctrl-btn--prev"
+                  onClick={() => selectTrack((currentIdx - 1 + tracks.length) % tracks.length)}
+                  aria-label="Previous track"
+                  data-cursor-hover
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M19 20L9 12l10-8v16zM5 4v16" strokeLinecap="round" />
+                  </svg>
+                </button>
+
+                <button
+                  className="ctrl-btn ctrl-btn--play"
+                  onClick={togglePlay}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                  data-cursor-hover
+                >
+                  {isPlaying ? (
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M5 4l15 8-15 8V4z" fill="currentColor" />
+                    </svg>
+                  )}
+                </button>
+
+                <button
+                  className="ctrl-btn ctrl-btn--next"
+                  onClick={() => selectTrack((currentIdx + 1) % tracks.length)}
+                  aria-label="Next track"
+                  data-cursor-hover
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M5 4l10 8-10 8V4zM19 4v16" strokeLinecap="round" />
+                  </svg>
+                </button>
+
+                {/* Volume */}
+                <div className="volume-control" data-cursor-hover>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16">
+                    <path d="M11 5L6 9H2v6h4l5 4V5z" strokeLinecap="round" />
+                    <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" strokeLinecap="round" />
+                  </svg>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={handleVolume}
+                    className="volume-slider"
+                    aria-label="Volume"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <audio
+          ref={audioRef}
+          src={currentTrack.file}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleEnded}
+          preload="metadata"
+        />
+      </section>
+
+      {/* ─── Floating Mini Player ─── */}
+      <div
+        className={`mini-player ${miniVisible && hasPlayed ? 'mini-player--visible' : ''}`}
+        onClick={scrollToPlayer}
+        role="button"
+        tabIndex={0}
+        aria-label={`Now playing: ${currentTrack.title} — click to return to player`}
+        data-cursor-hover
+        onKeyDown={(e) => e.key === 'Enter' && scrollToPlayer()}
+      >
+        {/* Blurred cover art tint — colours the glassmorphic pill */}
+        <div className="mini-player__art-tint" aria-hidden="true">
+          <img src={currentTrack.cover} alt="" />
+        </div>
+
+        {/* Cover art thumbnail */}
+        <div className="mini-player__cover">
+          <img src={currentTrack.cover} alt={currentTrack.title} />
+        </div>
+
+        {/* Track info */}
+        <div className="mini-player__info">
+          <span className="mini-player__title">{currentTrack.title}</span>
+          <span className="mini-player__genre">{currentTrack.genre}</span>
+        </div>
+
+        {/* Play / Pause */}
+        <button
+          className="mini-player__playbtn"
+          onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          data-cursor-hover
+        >
+          {isPlaying ? (
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+              <rect x="5" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+              <rect x="15" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+              <path d="M5 4l15 8-15 8V4z" fill="currentColor"/>
+            </svg>
+          )}
+        </button>
+
+        {/* Progress underline */}
+        <div className="mini-player__progress">
+          <div className="mini-player__progress-fill" style={{ width: `${progress * 100}%` }} />
         </div>
       </div>
-      
-      {/* Elegant minimalist timeline */}
-      <div className="sleek-scrubber" onClick={handleSeek}>
-        <div className="sleek-scrubber-fill" style={{ width: `${progress}%` }}>
-            <div className="sleek-scrubber-glow"></div>
-        </div>
-      </div>
-      
-      <audio ref={audioRef} src={src} preload="metadata" crossOrigin="anonymous" />
-    </motion.div>
+    </>
   );
 };
 
