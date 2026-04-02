@@ -271,7 +271,7 @@ function App() {
       {/* ─── Hero ─── */}
       <section className="hero" id="home">
         <div className="hero__bg-wrap">
-          <img src="/hero_bg.png" alt="Composer studio" className="hero__bg" loading="lazy" />
+          <img src="/hero_banner_bg.jpeg" alt="Composer studio" className="hero__bg" loading="lazy" />
           <div className="hero__overlay" />
         </div>
         <div className="hero__content">

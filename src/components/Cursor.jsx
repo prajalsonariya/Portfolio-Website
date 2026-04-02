@@ -10,6 +10,9 @@ const Cursor = () => {
   const rafId = useRef(null);
 
   useEffect(() => {
+    // Only run on devices that support hover (mouse/trackpad)
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
     const lerp = (a, b, n) => a + (b - a) * n;
 
     const onMouseMove = (e) => {

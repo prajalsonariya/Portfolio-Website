@@ -24,17 +24,21 @@ html {
   scroll-behavior: auto; /* Lenis handles this */
 }
 
+/* ─── Global Cursor Behavior ─── */
+@media (hover: hover) and (pointer: fine) {
+  body {
+    cursor: none;
+  }
+  *, *::before, *::after {
+    cursor: none !important;
+  }
+}
+
 body {
   font-family: var(--font-main);
   background: var(--bg-light);
   color: var(--text-dark);
   overflow-x: hidden;
-  cursor: none;
-}
-
-/* Hide default cursor everywhere */
-*, *::before, *::after {
-  cursor: none !important;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -57,7 +61,6 @@ button {
   font-family: var(--font-main);
   border: none;
   background: none;
-  cursor: none;
 }
 
 img {

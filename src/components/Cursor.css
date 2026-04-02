@@ -1,3 +1,16 @@
+/* ─── Global Visibility Check ─── */
+.cursor-ring,
+.cursor-dot {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cursor-ring,
+  .cursor-dot {
+    display: block;
+  }
+}
+
 /* ─── Cursor Ring ─── */
 .cursor-ring {
   position: fixed;
