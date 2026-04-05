@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import Lenis from '@studio-freight/lenis';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -266,6 +267,7 @@ function App() {
   return (
     <>
       <Analytics />
+      <SpeedInsights />
       <Cursor />
       <Navbar />
       <div className="scroll-progress" id="scroll-progress" />
