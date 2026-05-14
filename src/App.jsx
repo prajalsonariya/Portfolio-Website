@@ -130,17 +130,7 @@ function App() {
       },
     });
 
-    gsap.from('.about__cta', {
-      y: 20,
-      opacity: 0,
-      duration: 1,
-      ease: 'power3.out',
-      delay: 0.3,
-      scrollTrigger: {
-        trigger: '.about',
-        start: 'top 65%',
-      },
-    });
+
 
     // ─── Works section ───
     gsap.from('.section-tag', {
@@ -298,15 +288,16 @@ function App() {
       {/* ─── About ─── */}
       <section className="about" id="about">
         <div className="about__inner">
-          <p className="about__tag">
-            <span className="tag-diamond">◆</span> STORYTELLER'S PERSPECTIVE
-          </p>
-          <h2 className="about__headline">
-            To truly recognize a story is to awaken a memory. That sweet, lingering ache is finally understood through the music.
-          </h2>
-          <a href="#contact" className="about__cta cta-btn" data-cursor-hover>
-            <span>↳</span> WHO I AM
-          </a>
+          <p className="about__tag">BIO</p>
+          <div className="about__bio">
+            <h2 className="about__headline">
+              <strong>Prajal Sonariya is a composer</strong> and audio engineer who builds scores for film and video games. His work is all about the psychological side of sound and how traditional orchestral instruments can work with technical engineering to tell a story.
+            </h2>
+            <h3 className="about__subhead">MY PROCESS</h3>
+            <p className="about__body">
+              Whether I am mixing or writing a theme from scratch, my process always starts with &quot;The Anchor,&quot; which is finding the emotional weight of the scene before I touch an instrument or a knob.
+            </p>
+          </div>
         </div>
         <div className="about__divider" />
       </section>
